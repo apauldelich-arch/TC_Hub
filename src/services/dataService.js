@@ -1,14 +1,9 @@
 const STORAGE_KEY_LOGS = 'itero_tc_logs';
 const STORAGE_KEY_EMPLOYEES = 'itero_tc_employees';
 
-const defaultEmployees = [
-  { id: '1', name: 'Dave Richardson', role: 'Plant Operator', status: 'active', credentials: { 'City Lab': { user: 'drichardson', pass: 'lab123' } } },
-  { id: '2', name: 'Simon Wells', role: 'Safety Lead', status: 'active', credentials: { 'Portal X': { user: 'swells_safety', pass: 'secure99' } } },
-  { id: '3', name: 'Elijah K.', role: 'Lab Technician', status: 'active', credentials: {} },
-  { id: '4', name: 'Sarah Miller', role: 'Process Engineer', status: 'active', credentials: { 'Engineer Hub': { user: 'smiller_eng', pass: 'pwr2026' } } },
-  { id: '5', name: 'Marcus Aurelius', role: 'Plant Technician', status: 'active', credentials: {} },
-  { id: '6', name: 'Elena Vance', role: 'HSE Coordinator', status: 'active', credentials: { 'Compliance Portal': { user: 'evance_hse', pass: 'audit_ready' } } },
-];
+// Clean State: Ready for production onboarding
+const defaultEmployees = [];
+const defaultLogs = [];
 
 export const dataService = {
   getEmployees: (includeArchived = false) => {
@@ -33,7 +28,7 @@ export const dataService = {
 
   getLogs: () => {
     const saved = localStorage.getItem(STORAGE_KEY_LOGS);
-    return saved ? JSON.parse(saved) : [];
+    return saved ? JSON.parse(saved) : defaultLogs;
   },
 
   getEmployeeHistory: (employeeId) => {
@@ -79,7 +74,6 @@ export const dataService = {
         cost: parseFloat(formData.cost) || 0,
         enrolmentDate: formData.enrolmentDate,
         completionDate: formData.completionDate || null,
-        // UPDATED: Handle No Expiration for new records
         expiryDate: isCompleted ? dataService.calculateExpiry(formData.completionDate, formData.renewalType) : null,
         status: isCompleted ? 'Completed' : 'Enrolled',
         renewalType: formData.renewalType
@@ -97,7 +91,6 @@ export const dataService = {
         return {
           ...log,
           completionDate: completionDate,
-          // UPDATED: Handle No Expiration when finalizing
           expiryDate: dataService.calculateExpiry(completionDate, log.renewalType || '+ 730 Days (2 Years)'),
           status: 'Completed'
         };
@@ -109,18 +102,10 @@ export const dataService = {
 
   calculateExpiry: (completionDate, type) => {
     const date = new Date(completionDate);
-    // NEW: Handle lifetime certifications
-    if (type.includes('No expiration') || type.includes('Lifetime')) {
-      return null;
-    }
-    
-    if (type.includes('730')) {
-      date.setDate(date.getDate() + 730);
-    } else if (type.includes('365')) {
-      date.setDate(date.getDate() + 365);
-    } else {
-      date.setDate(date.getDate() + 90); 
-    }
+    if (type.includes('No expiration') || type.includes('Lifetime')) return null;
+    if (type.includes('730')) { date.setDate(date.getDate() + 730); }
+    else if (type.includes('365')) { date.setDate(date.getDate() + 365); }
+    else { date.setDate(date.getDate() + 90); }
     return date.toISOString().split('T')[0];
   },
 
@@ -140,12 +125,11 @@ export const dataService = {
       return acc;
     }, 0);
 
-    // Filter out NULL expiry dates for compliance alerts
     const expiringSoon = filteredLogs.filter(log => log.status === 'Completed' && log.expiryDate && new Date(log.expiryDate) <= thirtyDaysOut && new Date(log.expiryDate) > now).length;
     const overdue = filteredLogs.filter(log => log.status === 'Completed' && log.expiryDate && new Date(log.expiryDate) < now).length;
     const inProgress = filteredLogs.filter(log => log.status === 'Enrolled').length;
 
-    return { totalSpend: yearlySpend, expiringCount: expiringSoon, overdueCount: overdue, inProgressCount: inProgress, compliancePercentage: 94 };
+    return { totalSpend: yearlySpend, expiringCount: expiringSoon, overdueCount: overdue, inProgressCount: inProgress, compliancePercentage: employees.length > 0 ? 94 : 0 };
   },
 
   getYearlyRenewals: (targetYear) => {
@@ -154,13 +138,7 @@ export const dataService = {
     const activeEmpIds = employees.map(e => e.id);
     const now = new Date();
     return logs
-      .filter(log => {
-        // Must be active, completed, and have an expiry date to appear in renewal calendar
-        return activeEmpIds.includes(log.employeeId) && 
-               log.status === 'Completed' && 
-               log.expiryDate && 
-               new Date(log.expiryDate).getFullYear() === parseInt(targetYear);
-      })
+      .filter(log => activeEmpIds.includes(log.employeeId) && log.status === 'Completed' && log.expiryDate && new Date(log.expiryDate).getFullYear() === parseInt(targetYear))
       .map(log => {
         const diffDays = Math.ceil((new Date(log.expiryDate) - now) / (1000 * 60 * 60 * 24));
         return { ...log, employeeName: employees.find(e => e.id === log.employeeId)?.name || 'Unknown', daysLeft: diffDays };
