@@ -75,6 +75,8 @@ const Dashboard = () => {
     setStats(dataService.getDashboardStats(selectedYear));
   }, [selectedYear]);
 
+  const [showSpendBreakdown, setShowSpendBreakdown] = useState(false);
+
   return (
     <div className="view-container">
       <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
@@ -85,17 +87,21 @@ const Dashboard = () => {
         <YearPicker selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
         <div className="card glass">
           <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Total Compliance</h3>
           <div style={{ fontSize: '2.5rem', fontWeight: '700' }}>{stats.compliancePercentage}%</div>
-          <div style={{ color: 'var(--status-green)', fontSize: '0.8rem', marginTop: '0.5rem' }}>General Readiness High</div>
+          <div style={{ color: stats.compliancePercentage >= 90 ? 'var(--status-green)' : 'var(--status-amber)', fontSize: '0.8rem', marginTop: '0.5rem' }}>{stats.compliancePercentage >= 90 ? 'General Readiness High' : 'Attention Required'}</div>
         </div>
-        <div className="card glass" style={{ position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: '10px', right: '15px', fontSize: '0.65rem', background: 'var(--secondary)', color: 'black', padding: '2px 8px', borderRadius: '4px', fontWeight: '700', letterSpacing: '0.5px' }}>FISCAL {selectedYear}</div>
+        <div 
+          className="card glass" 
+          style={{ position: 'relative', overflow: 'hidden', cursor: 'pointer', border: showSpendBreakdown ? '1px solid var(--secondary)' : '1px solid var(--glass-border)' }}
+          onClick={() => setShowSpendBreakdown(!showSpendBreakdown)}
+        >
+          <div style={{ position: 'absolute', top: '10px', right: '15px', fontSize: '0.65rem', background: 'var(--secondary)', color: 'black', padding: '2px 8px', borderRadius: '4px', fontWeight: '700', letterSpacing: '0.5px' }}>DETAILS</div>
           <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Annual Training Spend: {selectedYear}</h3>
           <div style={{ fontSize: '2.5rem', fontWeight: '700', color: 'var(--secondary)' }}>£{stats.totalSpend.toLocaleString()}</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>Audited for active completion dates.</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>{showSpendBreakdown ? 'Click to hide breakdown' : 'Click to view breakdown'}</div>
         </div>
         <div className="card glass">
           <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Renewal Horizon</h3>
@@ -103,6 +109,45 @@ const Dashboard = () => {
           <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>Impending (30 Days)</div>
         </div>
       </div>
+
+      {showSpendBreakdown && (
+        <div className="card glass" style={{ animation: 'slideDown 0.3s ease-out' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+            <h3 style={{ fontSize: '1rem', color: 'var(--secondary)', fontWeight: '700' }}>Fiscal Spend Distribution ({selectedYear})</h3>
+            <button onClick={() => setShowSpendBreakdown(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>✕ Close</button>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+              <thead>
+                <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--glass-border)' }}>
+                  <th style={{ padding: '12px 0', color: 'var(--text-muted)', fontWeight: '500' }}>Training Course</th>
+                  <th style={{ padding: '12px 0', textAlign: 'right', color: 'var(--text-muted)', fontWeight: '500' }}>Total Cost</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.spendBreakdown.length === 0 ? (
+                  <tr><td colSpan="2" style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)' }}>No spending recorded for this year.</td></tr>
+                ) : (
+                  stats.spendBreakdown.map((item, idx) => (
+                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                      <td style={{ padding: '12px 0', fontWeight: '600' }}>{item.name}</td>
+                      <td style={{ padding: '12px 0', textAlign: 'right', color: 'var(--secondary)', fontWeight: '700' }}>£{item.cost.toLocaleString()}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+              {stats.spendBreakdown.length > 0 && (
+                <tfoot>
+                  <tr style={{ borderTop: '2px solid var(--glass-border)' }}>
+                    <th style={{ padding: '12px 0', textAlign: 'left' }}>Total Annual Budget Utilized</th>
+                    <th style={{ padding: '12px 0', textAlign: 'right', color: 'var(--secondary)', fontSize: '1.1rem' }}>£{stats.totalSpend.toLocaleString()}</th>
+                  </tr>
+                </tfoot>
+              )}
+            </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

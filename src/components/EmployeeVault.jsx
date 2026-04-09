@@ -193,7 +193,13 @@ const EmployeeVault = () => {
                   history.map(log => (
                     <div key={log.id} style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: log.status === 'Enrolled' ? '1px solid var(--status-amber)' : '1px solid var(--glass-border)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
-                        <div><div style={{ fontSize: '1rem', fontWeight: '600', color: 'white' }}>{log.courseName}</div><div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{log.provider}</div></div>
+                        <div>
+                          <div style={{ fontSize: '1rem', fontWeight: '700', color: 'white' }}>{log.courseName}</div>
+                          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '4px' }}>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{log.provider}</span>
+                            <span style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.05)', padding: '2px 6px', borderRadius: '4px', color: 'var(--secondary)', fontWeight: '600', border: '1px solid rgba(0, 242, 254, 0.2)' }}>£{log.cost || 0}</span>
+                          </div>
+                        </div>
                         <div style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', background: log.status === 'Completed' ? 'rgba(0, 242, 254, 0.1)' : 'rgba(255, 179, 71, 0.1)', color: log.status === 'Completed' ? 'var(--secondary)' : 'var(--status-amber)', border: `1px solid ${log.status === 'Completed' ? 'var(--secondary)' : 'var(--status-amber)'}`, height: 'fit-content', textTransform: 'uppercase', fontWeight: '700' }}>{log.status === 'Enrolled' ? 'In Progress' : 'Completed'}</div>
                       </div>
                       
