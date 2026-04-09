@@ -146,15 +146,18 @@ export const dataService = {
       return acc;
     }, 0);
 
-    const spendMap = filteredLogs
+    const spendItems = filteredLogs
       .filter(log => log.enrolmentDate && new Date(log.enrolmentDate).getFullYear() === parseInt(targetYear))
-      .reduce((acc, log) => {
-        const cost = parseFloat(log.cost) || 0;
-        if (cost > 0) {
-          acc[log.courseName] = (acc[log.courseName] || 0) + cost;
-        }
-        return acc;
-      }, {});
+      .map(log => {
+        const emp = employees.find(e => e.id === log.employeeId);
+        return {
+          employeeName: emp ? emp.name : 'Unknown',
+          courseName: log.courseName,
+          cost: parseFloat(log.cost) || 0
+        };
+      })
+      .filter(item => item.cost > 0)
+      .sort((a, b) => b.cost - a.cost);
 
     const expiringSoon = filteredLogs.filter(log => log.status === 'Completed' && log.expiryDate && new Date(log.expiryDate) <= thirtyDaysOut && new Date(log.expiryDate) > now).length;
     const overdue = filteredLogs.filter(log => log.status === 'Completed' && log.expiryDate && new Date(log.expiryDate) < now).length;
@@ -165,7 +168,7 @@ export const dataService = {
       expiringCount: expiringSoon, 
       overdueCount: overdue, 
       inProgressCount: inProgress, 
-      spendBreakdown: Object.entries(spendMap).map(([name, cost]) => ({ name, cost })).sort((a,b) => b.cost - a.cost),
+      spendBreakdown: spendItems,
       compliancePercentage: employees.length > 0 ? Math.round(((employees.length - overdue) / employees.length) * 100) : 100 
     };
   },

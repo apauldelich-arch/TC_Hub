@@ -120,17 +120,19 @@ const Dashboard = () => {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
               <thead>
                 <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--glass-border)' }}>
+                  <th style={{ padding: '12px 0', color: 'var(--text-muted)', fontWeight: '500' }}>Employee</th>
                   <th style={{ padding: '12px 0', color: 'var(--text-muted)', fontWeight: '500' }}>Training Course</th>
                   <th style={{ padding: '12px 0', textAlign: 'right', color: 'var(--text-muted)', fontWeight: '500' }}>Total Cost</th>
                 </tr>
               </thead>
               <tbody>
                 {stats.spendBreakdown.length === 0 ? (
-                  <tr><td colSpan="2" style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)' }}>No spending recorded for this year.</td></tr>
+                  <tr><td colSpan="3" style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)' }}>No spending recorded for this year.</td></tr>
                 ) : (
                   stats.spendBreakdown.map((item, idx) => (
                     <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                      <td style={{ padding: '12px 0', fontWeight: '600' }}>{item.name}</td>
+                      <td style={{ padding: '12px 0', color: 'white' }}>{item.employeeName}</td>
+                      <td style={{ padding: '12px 0', fontWeight: '400', color: 'var(--text-muted)' }}>{item.courseName}</td>
                       <td style={{ padding: '12px 0', textAlign: 'right', color: 'var(--secondary)', fontWeight: '700' }}>£{item.cost.toLocaleString()}</td>
                     </tr>
                   ))
@@ -139,7 +141,7 @@ const Dashboard = () => {
               {stats.spendBreakdown.length > 0 && (
                 <tfoot>
                   <tr style={{ borderTop: '2px solid var(--glass-border)' }}>
-                    <th style={{ padding: '12px 0', textAlign: 'left' }}>Total Annual Budget Utilized</th>
+                    <th colSpan="2" style={{ padding: '12px 0', textAlign: 'left' }}>Total Annual Budget Utilized</th>
                     <th style={{ padding: '12px 0', textAlign: 'right', color: 'var(--secondary)', fontSize: '1.1rem' }}>£{stats.totalSpend.toLocaleString()}</th>
                   </tr>
                 </tfoot>
