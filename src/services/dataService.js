@@ -100,6 +100,17 @@ export const dataService = {
     localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
   },
 
+  updateTrainingRecord: (recordId, updates) => {
+    const logs = dataService.getLogs();
+    const updatedLogs = logs.map(log => {
+      if (log.id === recordId) {
+        return { ...log, ...updates };
+      }
+      return log;
+    });
+    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
+  },
+
   calculateExpiry: (completionDate, type) => {
     const date = new Date(completionDate);
     if (type.includes('No expiration') || type.includes('Lifetime')) return null;

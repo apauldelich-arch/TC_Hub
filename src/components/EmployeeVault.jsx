@@ -31,11 +31,25 @@ const EmployeeVault = () => {
   const handleComplete = (e) => {
     e.preventDefault();
     if (showCompleteModal && completionDateInput) {
-      dataService.completeRecord(showCompleteModal, completionDateInput, expiryDateInput);
+      const log = history.find(l => l.id === showCompleteModal);
+      if (log && log.status === 'Completed') {
+        dataService.updateTrainingRecord(showCompleteModal, { 
+          completionDate: completionDateInput, 
+          expiryDate: expiryDateInput 
+        });
+      } else {
+        dataService.completeRecord(showCompleteModal, completionDateInput, expiryDateInput);
+      }
       setShowCompleteModal(null);
       setExpiryDateInput('');
       refreshList();
     }
+  };
+
+  const startEditLog = (log) => {
+    setShowCompleteModal(log.id);
+    setCompletionDateInput(log.completionDate || new Date().toISOString().split('T')[0]);
+    setExpiryDateInput(log.expiryDate || '');
   };
 
   const handleAddEmployee = (e) => {
@@ -184,7 +198,10 @@ const EmployeeVault = () => {
                         <div style={{ textAlign: 'center' }}>
                           <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Completed</div>
                           {log.status === 'Completed' ? (
-                            <div style={{ fontSize: '0.85rem', fontWeight: '600' }}>{formatDate(log.completionDate)}</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                              <div style={{ fontSize: '0.85rem', fontWeight: '600' }}>{formatDate(log.completionDate)}</div>
+                              <button onClick={() => startEditLog(log)} style={{ background: 'none', border: 'none', color: 'var(--secondary)', fontSize: '0.6rem', cursor: 'pointer', textDecoration: 'underline' }}>EDIT LOG</button>
+                            </div>
                           ) : (
                             <button onClick={() => setShowCompleteModal(log.id)} style={{ background: 'var(--primary)', border: 'none', color: 'white', padding: '2px 8px', borderRadius: '4px', fontSize: '0.65rem', cursor: 'pointer', fontWeight: '700' }}>FINALIZE</button>
                           )}
@@ -203,18 +220,23 @@ const EmployeeVault = () => {
 
                       {showCompleteModal === log.id && (
                         <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px solid var(--primary)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                          <div style={{ fontSize: '0.75rem', fontWeight: '700', color: 'var(--primary)', textTransform: 'uppercase' }}>
+                            {log.status === 'Completed' ? 'Modify Training Record' : 'Finalize Training Record'}
+                          </div>
                           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
                             <div>
                               <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>Completion Date:</label>
                               <input type="date" value={completionDateInput} onChange={(e) => setCompletionDateInput(e.target.value)} style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '6px' }} />
                             </div>
                             <div>
-                              <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>Renewal Override:</label>
+                              <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>Renewal Date:</label>
                               <input type="date" value={expiryDateInput} onChange={(e) => setExpiryDateInput(e.target.value)} placeholder="Auto-calculate..." style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '6px' }} />
                             </div>
                           </div>
                           <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={handleComplete} style={{ flex: 1, background: 'var(--secondary)', color: 'black', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}>Save and Finalize</button>
+                            <button onClick={handleComplete} style={{ flex: 1, background: 'var(--secondary)', color: 'black', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}>
+                              {log.status === 'Completed' ? 'Save Changes' : 'Save and Finalize'}
+                            </button>
                             <button onClick={() => setShowCompleteModal(null)} style={{ background: 'none', color: 'white', border: '1px solid var(--glass-border)', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
                           </div>
                         </div>
