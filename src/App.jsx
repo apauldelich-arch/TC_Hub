@@ -109,7 +109,7 @@ const Dashboard = () => {
         <YearPicker selectedYear={selectedYear} setSelectedYear={setSelectedYear} />
       </header>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
         <div className="card glass">
           <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Total Compliance</h3>
           <div style={{ fontSize: '2.5rem', fontWeight: '700' }}>{stats.compliancePercentage}%</div>
@@ -121,9 +121,14 @@ const Dashboard = () => {
           onClick={() => setShowSpendBreakdown(!showSpendBreakdown)}
         >
           <div style={{ position: 'absolute', top: '10px', right: '15px', fontSize: '0.65rem', background: 'var(--secondary)', color: 'black', padding: '2px 8px', borderRadius: '4px', fontWeight: '700', letterSpacing: '0.5px' }}>DETAILS</div>
-          <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Annual Training Spend: {selectedYear}</h3>
+          <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Annual Spend: {selectedYear}</h3>
           <div style={{ fontSize: '2.5rem', fontWeight: '700', color: 'var(--secondary)' }}>£{stats.totalSpend.toLocaleString()}</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>{showSpendBreakdown ? 'Click to hide breakdown' : 'Click to view breakdown'}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>{showSpendBreakdown ? 'Hide distribution' : 'View distribution'}</div>
+        </div>
+        <div className="card glass">
+          <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Active Enrolments</h3>
+          <div style={{ fontSize: '2.5rem', fontWeight: '700', color: 'var(--primary)' }}>{stats.inProgressCount}</div>
+          <div style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.5rem' }}>Currently In Progress</div>
         </div>
         <div className="card glass">
           <h3 style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>Renewal Horizon</h3>
@@ -144,26 +149,44 @@ const Dashboard = () => {
                 <tr style={{ textAlign: 'left', borderBottom: '1px solid var(--glass-border)' }}>
                   <th style={{ padding: '12px 0', color: 'var(--text-muted)', fontWeight: '500' }}>Employee</th>
                   <th style={{ padding: '12px 0', color: 'var(--text-muted)', fontWeight: '500' }}>Training Course</th>
-                  <th style={{ padding: '12px 0', textAlign: 'right', color: 'var(--text-muted)', fontWeight: '500' }}>Total Cost</th>
+                  <th style={{ padding: '12px 0', color: 'var(--text-muted)', fontWeight: '500' }}>Status</th>
+                  <th style={{ padding: '12px 0', textAlign: 'right', color: 'var(--text-muted)', fontWeight: '500' }}>Cost</th>
                 </tr>
               </thead>
               <tbody>
                 {stats.spendBreakdown.length === 0 ? (
                   <tr><td colSpan="3" style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)' }}>No spending recorded for this year.</td></tr>
                 ) : (
-                  stats.spendBreakdown.map((item, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                      <td style={{ padding: '12px 0', color: 'white' }}>{item.employeeName}</td>
-                      <td style={{ padding: '12px 0', fontWeight: '400', color: 'var(--text-muted)' }}>{item.courseName}</td>
-                      <td style={{ padding: '12px 0', textAlign: 'right', color: 'var(--secondary)', fontWeight: '700' }}>£{item.cost.toLocaleString()}</td>
-                    </tr>
-                  ))
+                  stats.spendBreakdown.map((item, idx) => {
+                    const isOverdue = item.status === 'Completed' && item.expiryDate && new Date(item.expiryDate) < new Date();
+                    return (
+                      <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                        <td style={{ padding: '12px 0', color: 'white' }}>{item.employeeName}</td>
+                        <td style={{ padding: '12px 0', fontWeight: '400', color: 'var(--text-muted)' }}>{item.courseName}</td>
+                        <td style={{ padding: '12px 0' }}>
+                          <span style={{ 
+                            fontSize: '0.65rem', 
+                            padding: '3px 8px', 
+                            borderRadius: '4px', 
+                            fontWeight: '700',
+                            background: isOverdue ? 'rgba(231, 76, 60, 0.1)' : (item.status === 'Completed' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(52, 152, 219, 0.1)'),
+                            color: isOverdue ? 'var(--status-red)' : (item.status === 'Completed' ? 'var(--status-green)' : 'var(--primary)'),
+                            border: `1px solid ${isOverdue ? 'var(--status-red)' : (item.status === 'Completed' ? 'var(--status-green)' : 'var(--primary)')}`,
+                            opacity: 0.8
+                          }}>
+                            {isOverdue ? 'EXPIRED' : item.status.toUpperCase()}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 0', textAlign: 'right', color: 'var(--secondary)', fontWeight: '700' }}>£{item.cost.toLocaleString()}</td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
               {stats.spendBreakdown.length > 0 && (
                 <tfoot>
                   <tr style={{ borderTop: '2px solid var(--glass-border)' }}>
-                    <th colSpan="2" style={{ padding: '12px 0', textAlign: 'left' }}>Total Annual Budget Utilized</th>
+                    <th colSpan="3" style={{ padding: '12px 0', textAlign: 'left' }}>Total Annual Budget Utilized</th>
                     <th style={{ padding: '12px 0', textAlign: 'right', color: 'var(--secondary)', fontSize: '1.1rem' }}>£{stats.totalSpend.toLocaleString()}</th>
                   </tr>
                 </tfoot>

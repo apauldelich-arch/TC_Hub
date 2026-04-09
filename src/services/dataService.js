@@ -192,10 +192,11 @@ export const dataService = {
         return {
           employeeName: emp ? emp.name : 'Unknown',
           courseName: log.course_name,
-          cost: parseFloat(log.cost) || 0
+          cost: parseFloat(log.cost) || 0,
+          status: log.status,
+          expiryDate: log.expiry_date
         };
       })
-      .filter(item => item.cost > 0)
       .sort((a, b) => b.cost - a.cost);
 
     const expiringSoon = filteredLogs.filter(log => log.status === 'Completed' && log.expiry_date && new Date(log.expiry_date) <= thirtyDaysOut && new Date(log.expiry_date) > now).length;
