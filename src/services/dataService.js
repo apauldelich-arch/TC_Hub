@@ -1,123 +1,160 @@
-const STORAGE_KEY_LOGS = 'itero_tc_logs';
-const STORAGE_KEY_EMPLOYEES = 'itero_tc_employees';
-
-// Clean State: Ready for production onboarding
-const defaultEmployees = [];
-const defaultLogs = [];
+import { supabase } from '../supabaseClient';
 
 export const dataService = {
-  getEmployees: (includeArchived = false) => {
-    const saved = localStorage.getItem(STORAGE_KEY_EMPLOYEES);
-    const emps = saved ? JSON.parse(saved) : defaultEmployees;
-    return includeArchived ? emps : emps.filter(e => e.status !== 'archived');
+  // Helper to map Supabase snake_case to Frontend camelCase
+  mapLog: (log) => ({
+    id: log.id,
+    employeeId: log.employee_id,
+    courseName: log.course_name,
+    provider: log.provider,
+    providerWebsite: log.provider_website,
+    cost: log.cost,
+    enrolmentDate: log.enrolment_date,
+    completionDate: log.completion_date,
+    expiryDate: log.expiry_date,
+    status: log.status,
+    renewalType: log.renewal_type,
+    createdAt: log.created_at
+  }),
+
+  mapEmployee: (emp) => ({
+    id: emp.id,
+    name: emp.name,
+    role: emp.role,
+    isArchived: emp.is_archived,
+    credentials: emp.credentials,
+    createdAt: emp.created_at
+  }),
+
+  // Employees
+  getEmployees: async (showArchived = false) => {
+    let query = supabase
+      .from('employees')
+      .select('*')
+      .order('name');
+    
+    if (!showArchived) {
+      query = query.eq('is_archived', false);
+    }
+    
+    const { data, error } = await query;
+    if (error) throw error;
+    return data.map(dataService.mapEmployee);
   },
 
-  addEmployee: (name, role) => {
-    const emps = dataService.getEmployees(true);
-    const newEmp = { id: crypto.randomUUID(), name, role, status: 'active', credentials: {} };
-    const updated = [...emps, newEmp];
-    localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(updated));
-    return newEmp;
+  addEmployee: async (name, role) => {
+    const { data, error } = await supabase
+      .from('employees')
+      .insert([{ name, role }])
+      .select();
+    if (error) throw error;
+    return dataService.mapEmployee(data[0]);
   },
 
-  archiveEmployee: (id) => {
-    const emps = dataService.getEmployees(true);
-    const updated = emps.map(e => e.id === id ? { ...e, status: 'archived' } : e);
-    localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(updated));
+  archiveEmployee: async (employeeId) => {
+    const { error } = await supabase
+      .from('employees')
+      .update({ is_archived: true })
+      .eq('id', employeeId);
+    if (error) throw error;
   },
 
-  getLogs: () => {
-    const saved = localStorage.getItem(STORAGE_KEY_LOGS);
-    return saved ? JSON.parse(saved) : defaultLogs;
+  updateEmployeeCredentials: async (employeeId, portal, user, pass) => {
+    const { data: emp, error: fError } = await supabase
+      .from('employees')
+      .select('credentials')
+      .eq('id', employeeId)
+      .single();
+    if (fError) throw fError;
+
+    const newCreds = { ...(emp.credentials || {}) };
+    newCreds[portal] = { user, pass };
+
+    const { error } = await supabase
+      .from('employees')
+      .update({ credentials: newCreds })
+      .eq('id', employeeId);
+    if (error) throw error;
   },
 
-  getEmployeeHistory: (employeeId) => {
-    const logs = dataService.getLogs();
-    return logs.filter(log => log.employeeId === employeeId).sort((a,b) => new Date(b.enrolmentDate) - new Date(a.enrolmentDate));
+  deleteEmployeeCredential: async (employeeId, portalKey) => {
+    const { data: emp, error: fError } = await supabase
+      .from('employees')
+      .select('credentials')
+      .eq('id', employeeId)
+      .single();
+    
+    if (fError) throw fError;
+    
+    const newCreds = { ...emp.credentials };
+    delete newCreds[portalKey];
+    
+    const { error: uError } = await supabase
+      .from('employees')
+      .update({ credentials: newCreds })
+      .eq('id', employeeId);
+    
+    if (uError) throw uError;
   },
 
-  getUniqueCenters: () => {
-    const logs = dataService.getLogs();
-    const centersMap = {};
-    logs.forEach(log => {
-      const name = log.provider || 'Uncategorized';
-      if (!centersMap[name]) {
-        centersMap[name] = { name: name, website: log.website || '', courses: new Set() };
-      }
-      if (log.courseName) centersMap[name].courses.add(log.courseName);
-    });
-    return Object.values(centersMap).map(center => ({
-      ...center,
-      courses: Array.from(center.courses).sort()
-    })).sort((a,b) => a.name.localeCompare(b.name));
+  // Training Logs
+  getLogs: async () => {
+    const { data, error } = await supabase
+      .from('training_logs')
+      .select('*')
+      .order('enrolment_date', { ascending: false });
+    if (error) throw error;
+    return data.map(dataService.mapLog);
   },
 
-  updateCenterDetails: (oldName, newName, newWebsite) => {
-    const logs = dataService.getLogs();
-    const updatedLogs = logs.map(log => {
-      if (log.provider === oldName) return { ...log, provider: newName, website: newWebsite };
-      return log;
-    });
-    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
+  getEmployeeHistory: async (employeeId) => {
+    const { data, error } = await supabase
+      .from('training_logs')
+      .select('*')
+      .eq('employee_id', employeeId)
+      .order('enrolment_date', { ascending: false });
+    if (error) throw error;
+    return data.map(dataService.mapLog);
   },
 
-  createTrainingRecords: (formData, selectedEmployeeIds) => {
-    const logs = dataService.getLogs();
-    const newRecords = selectedEmployeeIds.map(empId => {
-      const isCompleted = !!formData.completionDate;
-      return {
-        id: crypto.randomUUID(),
-        employeeId: empId,
-        courseName: formData.courseName,
-        provider: formData.provider,
-        website: formData.website,
-        cost: parseFloat(formData.cost) || 0,
-        enrolmentDate: formData.enrolmentDate,
-        completionDate: formData.completionDate || null,
-        expiryDate: isCompleted ? dataService.calculateExpiry(formData.completionDate, formData.renewalType) : null,
-        status: isCompleted ? 'Completed' : 'Enrolled',
-        renewalType: formData.renewalType
-      };
-    });
-    const updatedLogs = [...logs, ...newRecords];
-    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
-    return newRecords;
+  completeRecord: async (recordId, completionDate, manualExpiryDate) => {
+    const { data: log, error: fError } = await supabase
+      .from('training_logs')
+      .select('renewal_type')
+      .eq('id', recordId)
+      .single();
+    if (fError) throw fError;
+
+    const expiryDate = manualExpiryDate || dataService.calculateExpiry(completionDate, log.renewal_type || '+ 730 Days (2 Years)');
+    
+    const { error: uError } = await supabase
+      .from('training_logs')
+      .update({ 
+        completion_date: completionDate, 
+        expiry_date: expiryDate, 
+        status: 'Completed' 
+      })
+      .eq('id', recordId);
+    if (uError) throw uError;
   },
 
-  completeRecord: (recordId, completionDate, manualExpiryDate) => {
-    const logs = dataService.getLogs();
-    const updatedLogs = logs.map(log => {
-      if (log.id === recordId) {
-        return {
-          ...log,
-          completionDate: completionDate,
-          expiryDate: manualExpiryDate || dataService.calculateExpiry(completionDate, log.renewalType || '+ 730 Days (2 Years)'),
-          status: 'Completed'
-        };
-      }
-      return log;
-    });
-    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
-  },
+  updateTrainingRecord: async (recordId, updates) => {
+    const payload = {};
+    if (updates.completionDate !== undefined) payload.completion_date = updates.completionDate || null;
+    if (updates.expiryDate !== undefined) payload.expiry_date = updates.expiryDate || null;
+    
+    if (!payload.completion_date) {
+      payload.status = 'Enrolled';
+      payload.expiry_date = null;
+    } else {
+      payload.status = 'Completed';
+    }
 
-  updateTrainingRecord: (recordId, updates) => {
-    const logs = dataService.getLogs();
-    const updatedLogs = logs.map(log => {
-      if (log.id === recordId) {
-        const newRecord = { ...log, ...updates };
-        // If completion date is removed, revert to 'Enrolled'
-        if (!newRecord.completionDate || newRecord.completionDate === '') {
-          newRecord.status = 'Enrolled';
-          newRecord.completionDate = null;
-          newRecord.expiryDate = null;
-        } else {
-          newRecord.status = 'Completed';
-        }
-        return newRecord;
-      }
-      return log;
-    });
-    localStorage.setItem(STORAGE_KEY_LOGS, JSON.stringify(updatedLogs));
+    const { error } = await supabase
+      .from('training_logs')
+      .update(payload)
+      .eq('id', recordId);
+    if (error) throw error;
   },
 
   calculateExpiry: (completionDate, type) => {
@@ -129,38 +166,40 @@ export const dataService = {
     return date.toISOString().split('T')[0];
   },
 
-  getDashboardStats: (targetYear = new Date().getFullYear()) => {
-    const logs = dataService.getLogs();
-    const employees = dataService.getEmployees();
+  getDashboardStats: async (targetYear = new Date().getFullYear()) => {
+    const { data: employees, error: eError } = await supabase.from('employees').select('id, name').eq('is_archived', false);
+    const { data: logs, error: lError } = await supabase.from('training_logs').select('*');
+    
+    if (eError || lError) throw (eError || lError);
+
     const activeEmpIds = employees.map(e => e.id);
-    const filteredLogs = logs.filter(l => activeEmpIds.includes(l.employeeId));
+    const filteredLogs = logs.filter(l => activeEmpIds.includes(l.employee_id));
     const now = new Date();
     const thirtyDaysOut = new Date();
     thirtyDaysOut.setDate(now.getDate() + 30);
 
     const yearlySpend = filteredLogs.reduce((acc, log) => {
-      // Logic Update: Track spend by Enrolment Date since payments are usually up-front (advance pay)
-      if (log.enrolmentDate && new Date(log.enrolmentDate).getFullYear() === parseInt(targetYear)) {
+      if (log.enrolment_date && new Date(log.enrolment_date).getFullYear() === parseInt(targetYear)) {
         return acc + (parseFloat(log.cost) || 0);
       }
       return acc;
     }, 0);
 
     const spendItems = filteredLogs
-      .filter(log => log.enrolmentDate && new Date(log.enrolmentDate).getFullYear() === parseInt(targetYear))
+      .filter(log => log.enrolment_date && new Date(log.enrolment_date).getFullYear() === parseInt(targetYear))
       .map(log => {
-        const emp = employees.find(e => e.id === log.employeeId);
+        const emp = employees.find(e => e.id === log.employee_id);
         return {
           employeeName: emp ? emp.name : 'Unknown',
-          courseName: log.courseName,
+          courseName: log.course_name,
           cost: parseFloat(log.cost) || 0
         };
       })
       .filter(item => item.cost > 0)
       .sort((a, b) => b.cost - a.cost);
 
-    const expiringSoon = filteredLogs.filter(log => log.status === 'Completed' && log.expiryDate && new Date(log.expiryDate) <= thirtyDaysOut && new Date(log.expiryDate) > now).length;
-    const overdue = filteredLogs.filter(log => log.status === 'Completed' && log.expiryDate && new Date(log.expiryDate) < now).length;
+    const expiringSoon = filteredLogs.filter(log => log.status === 'Completed' && log.expiry_date && new Date(log.expiry_date) <= thirtyDaysOut && new Date(log.expiry_date) > now).length;
+    const overdue = filteredLogs.filter(log => log.status === 'Completed' && log.expiry_date && new Date(log.expiry_date) < now).length;
     const inProgress = filteredLogs.filter(log => log.status === 'Enrolled').length;
 
     return { 
@@ -173,59 +212,70 @@ export const dataService = {
     };
   },
 
-  getYearlyRenewals: (targetYear) => {
-    const logs = dataService.getLogs();
-    const employees = dataService.getEmployees();
+  getYearlyRenewals: async (targetYear) => {
+    const { data: employees, error: eError } = await supabase.from('employees').select('id, name').eq('is_archived', false);
+    const { data: logs, error: lError } = await supabase.from('training_logs').select('*').eq('status', 'Completed');
+    
+    if (eError || lError) throw (eError || lError);
+    
     const activeEmpIds = employees.map(e => e.id);
     const now = new Date();
+    
     return logs
-      .filter(log => activeEmpIds.includes(log.employeeId) && log.status === 'Completed' && log.expiryDate && new Date(log.expiryDate).getFullYear() === parseInt(targetYear))
+      .filter(log => activeEmpIds.includes(log.employee_id))
+      .filter(log => log.expiry_date && new Date(log.expiry_date).getFullYear() === parseInt(targetYear))
       .map(log => {
-        const diffDays = Math.ceil((new Date(log.expiryDate) - now) / (1000 * 60 * 60 * 24));
-        return { ...log, employeeName: employees.find(e => e.id === log.employeeId)?.name || 'Unknown', daysLeft: diffDays };
-      })
-      .sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate));
+        const emp = employees.find(e => e.id === log.employee_id);
+        return {
+          ...dataService.mapLog(log),
+          employeeName: emp ? emp.name : 'Unknown',
+          daysLeft: Math.ceil((new Date(log.expiry_date) - now) / (1000 * 60 * 60 * 24))
+        };
+      });
   },
 
-  getImpendingCrises: () => {
-    const logs = dataService.getLogs();
-    const employees = dataService.getEmployees();
-    const activeEmpIds = employees.map(e => e.id);
-    const now = new Date();
-    const horizon = new Date();
-    horizon.setDate(now.getDate() + 180);
-    return logs
-      .filter(log => activeEmpIds.includes(log.employeeId) && log.status === 'Completed' && log.expiryDate && new Date(log.expiryDate) <= horizon)
-      .map(log => {
-        const diffDays = Math.ceil((new Date(log.expiryDate) - now) / (1000 * 60 * 60 * 24));
-        return { ...log, employeeName: employees.find(e => e.id === log.employeeId)?.name || 'Unknown', daysLeft: diffDays };
-      })
-      .sort((a, b) => a.daysLeft - b.daysLeft);
-  },
-
-  updateEmployeeCredentials: (employeeId, portalName, user, pass) => {
-    const emps = dataService.getEmployees(true);
-    const updated = emps.map(e => {
-      if (e.id === employeeId) {
-        const credentials = { ...(e.credentials || {}) };
-        credentials[portalName] = { user, pass };
-        return { ...e, credentials };
+  getUniqueCenters: async () => {
+    const { data: logs, error } = await supabase.from('training_logs').select('provider, course_name, provider_website');
+    if (error) throw error;
+    
+    const centersMap = {};
+    logs.forEach(log => {
+      if (!log.provider) return;
+      if (!centersMap[log.provider]) {
+        centersMap[log.provider] = { name: log.provider, courses: new Set(), website: log.provider_website };
       }
-      return e;
+      centersMap[log.provider].courses.add(log.course_name);
     });
-    localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(updated));
+    
+    return Object.values(centersMap).map(c => ({
+      ...c,
+      courses: Array.from(c.courses)
+    }));
   },
 
-  deleteEmployeeCredential: (employeeId, portalName) => {
-    const emps = dataService.getEmployees(true);
-    const updated = emps.map(e => {
-      if (e.id === employeeId) {
-        const credentials = { ...(e.credentials || {}) };
-        delete credentials[portalName];
-        return { ...e, credentials };
-      }
-      return e;
-    });
-    localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(updated));
+  updateCenterDetails: async (oldName, newName, newWebsite) => {
+    const { error } = await supabase
+      .from('training_logs')
+      .update({ provider: newName, provider_website: newWebsite })
+      .eq('provider', oldName);
+    if (error) throw error;
+  },
+
+  createTrainingRecords: async (formData, employeeIds) => {
+    const records = employeeIds.map(empId => ({
+      employee_id: empId,
+      course_name: formData.courseName,
+      provider: formData.provider,
+      provider_website: formData.website,
+      cost: formData.cost || 0,
+      enrolment_date: formData.enrolmentDate,
+      completion_date: formData.completionDate || null,
+      renewal_type: formData.renewalType,
+      status: formData.completionDate ? 'Completed' : 'Enrolled',
+      expiry_date: formData.completionDate ? dataService.calculateExpiry(formData.completionDate, formData.renewalType) : null
+    }));
+
+    const { error } = await supabase.from('training_logs').insert(records);
+    if (error) throw error;
   }
 };

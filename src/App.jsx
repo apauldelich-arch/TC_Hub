@@ -45,19 +45,27 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
 
 const YearPicker = ({ selectedYear, setSelectedYear }) => {
   const currentYear = new Date().getFullYear();
-  const years = useMemo(() => {
-    const logs = dataService.getLogs();
-    const yearsInLogs = logs
-      .map(log => log.expiryDate ? new Date(log.expiryDate).getFullYear() : null)
-      .filter(y => y !== null);
-    const baseYears = [currentYear - 1, currentYear, currentYear, currentYear + 1, currentYear + 2];
-    const combined = [...baseYears, ...yearsInLogs];
-    return Array.from(new Set(combined)).sort((a, b) => a - b);
-  }, [currentYear]);
+  const [availableYears, setAvailableYears] = useState([currentYear - 1, currentYear, currentYear + 1, currentYear + 2]);
+
+  useEffect(() => {
+    const fetchYears = async () => {
+      try {
+        const logs = await dataService.getLogs();
+        const yearsInLogs = logs
+          .map(log => log.expiry_date ? new Date(log.expiry_date).getFullYear() : null)
+          .filter(y => y !== null);
+        const combined = [...availableYears, ...yearsInLogs];
+        setAvailableYears(Array.from(new Set(combined)).sort((a, b) => a - b));
+      } catch (e) {
+        console.error("Failed to fetch years", e);
+      }
+    };
+    fetchYears();
+  }, []);
 
   return (
     <div style={{ display: 'flex', gap: '8px', background: 'rgba(255,255,255,0.05)', padding: '6px', borderRadius: '10px', border: '1px solid var(--glass-border)', flexWrap: 'wrap', maxWidth: '400px', justifyContent: 'flex-end' }}>
-      {years.map(y => (
+      {availableYears.map(y => (
         <button key={y} onClick={() => setSelectedYear(y)} style={{ padding: '6px 14px', borderRadius: '6px', border: 'none', background: selectedYear === y ? 'var(--primary)' : 'transparent', color: selectedYear === y ? 'white' : 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: '600', transition: 'all 0.2s' }}>
           {y}
         </button>
@@ -69,13 +77,27 @@ const YearPicker = ({ selectedYear, setSelectedYear }) => {
 const Dashboard = () => {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [stats, setStats] = useState(dataService.getDashboardStats(currentYear));
+  const [stats, setStats] = useState({ totalSpend: 0, compliancePercentage: 100, expiringCount: 0, spendBreakdown: [] });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setStats(dataService.getDashboardStats(selectedYear));
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const s = await dataService.getDashboardStats(selectedYear);
+        setStats(s);
+      } catch (e) {
+        console.error("Failed to fetch stats", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
   }, [selectedYear]);
 
   const [showSpendBreakdown, setShowSpendBreakdown] = useState(false);
+
+  if (loading) return <div className="view-container">Loading Dashboard...</div>;
 
   return (
     <div className="view-container">
@@ -154,24 +176,46 @@ const Dashboard = () => {
   );
 };
 
-// UPDATED: Training Center Index with EDIT functionality
 const CentersView = () => {
-  const [centers, setCenters] = useState(dataService.getUniqueCenters());
+  const [centers, setCenters] = useState([]);
   const [editingCenter, setEditingCenter] = useState(null);
   const [editFormData, setEditFormData] = useState({ name: '', website: '' });
+  const [loading, setLoading] = useState(true);
+
+  const fetchCenters = async () => {
+    setLoading(true);
+    try {
+      const c = await dataService.getUniqueCenters();
+      setCenters(c);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCenters();
+  }, []);
 
   const startEdit = (center) => {
     setEditingCenter(center.name);
     setEditFormData({ name: center.name, website: center.website });
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (window.confirm(`Update center to "${editFormData.name}"? This will retroactively update all training records linked to this provider.`)) {
-      dataService.updateCenterDetails(editingCenter, editFormData.name, editFormData.website);
-      setEditingCenter(null);
-      setCenters(dataService.getUniqueCenters());
+      try {
+        await dataService.updateCenterDetails(editingCenter, editFormData.name, editFormData.website);
+        setEditingCenter(null);
+        await fetchCenters();
+      } catch (e) {
+        alert("Error saving: " + e.message);
+      }
     }
   };
+
+  if (loading) return <div className="view-container">Loading Centers...</div>;
 
   return (
     <div className="view-container">
@@ -247,7 +291,24 @@ const CentersView = () => {
 const HorizonCalendar = () => {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState(currentYear);
-  const crises = dataService.getYearlyRenewals(selectedYear);
+  const [crises, setCrises] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchRenewals = async () => {
+      setLoading(true);
+      try {
+        const c = await dataService.getYearlyRenewals(selectedYear);
+        setCrises(c);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchRenewals();
+  }, [selectedYear]);
+
   const months = [];
   for (let i = 0; i < 12; i++) {
     const d = new Date(selectedYear, i, 1);
@@ -258,6 +319,8 @@ const HorizonCalendar = () => {
     const d = new Date(dateStr);
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
+
+  if (loading) return <div className="view-container">Loading Calendar...</div>;
 
   return (
     <div className="view-container">
@@ -271,7 +334,7 @@ const HorizonCalendar = () => {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gridTemplateRows: 'repeat(4, auto)', gap: '1.2rem' }}>
         {months.map(m => {
           const monthCrises = crises.filter(c => {
-             const d = new Date(c.expiryDate);
+             const d = new Date(c.expiry_date);
              return d.getMonth() === m.monthIdx && d.getFullYear() === m.year;
           });
           const isCurrentMonth = new Date().getMonth() === m.monthIdx && new Date().getFullYear() === m.year;
@@ -286,8 +349,8 @@ const HorizonCalendar = () => {
                   monthCrises.map(c => (
                     <div key={c.id} style={{ padding: '10px', background: 'rgba(0,0,0,0.2)', fontSize: '0.75rem', borderRadius: '8px', borderLeft: `3px solid ${c.daysLeft < 0 ? 'var(--status-red)' : 'var(--status-amber)'}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
-                        <div style={{ fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>{c.courseName}</div>
-                        <div style={{ fontSize: '0.65rem', color: c.daysLeft < 0 ? 'var(--status-red)' : 'var(--secondary)', fontWeight: '800' }}>{formatDateLong(c.expiryDate)}</div>
+                        <div style={{ fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '100px' }}>{c.course_name}</div>
+                        <div style={{ fontSize: '0.65rem', color: c.daysLeft < 0 ? 'var(--status-red)' : 'var(--secondary)', fontWeight: '800' }}>{formatDateLong(c.expiry_date)}</div>
                       </div>
                       <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', display: 'flex', justifyContent: 'space-between' }}><span>{c.employeeName}</span><span style={{ fontSize: '0.55rem', opacity: 0.7 }}>RENEWAL DUE</span></div>
                     </div>

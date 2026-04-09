@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { dataService } from '../services/dataService';
 
 const EmployeeVault = () => {
@@ -9,47 +9,71 @@ const EmployeeVault = () => {
   const [isAddingEmployee, setIsAddingEmployee] = useState(false);
   const [newEmpData, setNewEmpData] = useState({ name: '', role: '' });
   
-  const [employees, setEmployees] = useState(dataService.getEmployees());
+  const [employees, setEmployees] = useState([]);
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   // Credential Management State
   const [isEditingCreds, setIsEditingCreds] = useState(false);
   const [editingPortalKey, setEditingPortalKey] = useState(null);
   const [tempCred, setTempCred] = useState({ portal: '', user: '', pass: '' });
 
-  const refreshList = () => {
-    setEmployees(dataService.getEmployees());
-    if (selectedEmployee) {
-      const updated = dataService.getEmployees(true).find(e => e.id === selectedEmployee.id);
-      setSelectedEmployee(updated);
+  const fetchEmployees = useCallback(async () => {
+    setLoading(true);
+    try {
+      const emps = await dataService.getEmployees();
+      setEmployees(emps);
+      if (selectedEmployee) {
+        const updated = emps.find(e => e.id === selectedEmployee.id);
+        if (updated) setSelectedEmployee(updated);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
     }
-  };
-
-  const history = useMemo(() => {
-    return selectedEmployee ? dataService.getEmployeeHistory(selectedEmployee.id) : [];
   }, [selectedEmployee]);
 
-  const handleComplete = (e) => {
+  const fetchHistory = useCallback(async () => {
+    if (!selectedEmployee) return;
+    try {
+      const h = await dataService.getEmployeeHistory(selectedEmployee.id);
+      setHistory(h);
+    } catch (e) {
+      console.error(e);
+    }
+  }, [selectedEmployee]);
+
+  useEffect(() => {
+    fetchEmployees();
+  }, []);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [selectedEmployee, fetchHistory]);
+
+  const handleComplete = async (e) => {
     e.preventDefault();
     if (showCompleteModal) {
       const log = history.find(l => l.id === showCompleteModal);
       
-      if (log && log.status === 'Completed') {
-        // When editing a completed record, allow clearing the date to revert status
-        dataService.updateTrainingRecord(showCompleteModal, { 
-          completionDate: completionDateInput, 
-          expiryDate: expiryDateInput 
-        });
-      } else if (completionDateInput) {
-        // When finalizing for the first time, require a date
-        dataService.completeRecord(showCompleteModal, completionDateInput, expiryDateInput);
-      } else {
-        // If trying to finalize without a date, do nothing or show alert
-        return;
+      try {
+        if (log && log.status === 'Completed') {
+          await dataService.updateTrainingRecord(showCompleteModal, { 
+            completionDate: completionDateInput, 
+            expiryDate: expiryDateInput 
+          });
+        } else if (completionDateInput) {
+          await dataService.completeRecord(showCompleteModal, completionDateInput, expiryDateInput);
+        } else {
+          return;
+        }
+        setShowCompleteModal(null);
+        setExpiryDateInput('');
+        await fetchHistory();
+      } catch (e) {
+        alert("Error updating record: " + e.message);
       }
-
-      setShowCompleteModal(null);
-      setExpiryDateInput('');
-      refreshList();
     }
   };
 
@@ -59,32 +83,44 @@ const EmployeeVault = () => {
     setExpiryDateInput(log.expiryDate || '');
   };
 
-  const handleAddEmployee = (e) => {
+  const handleAddEmployee = async (e) => {
     e.preventDefault();
     if (newEmpData.name) {
-      dataService.addEmployee(newEmpData.name, newEmpData.role);
-      setNewEmpData({ name: '', role: '' });
-      setIsAddingEmployee(false);
-      refreshList();
+      try {
+        await dataService.addEmployee(newEmpData.name, newEmpData.role);
+        setNewEmpData({ name: '', role: '' });
+        setIsAddingEmployee(false);
+        await fetchEmployees();
+      } catch (e) {
+        alert("Error adding employee: " + e.message);
+      }
     }
   };
 
-  const handleArchive = (id) => {
+  const handleArchive = async (id) => {
     if (window.confirm("Archive this employee? They will be hidden from all active views, but history is preserved for audit.")) {
-      dataService.archiveEmployee(id);
-      setSelectedEmployee(null);
-      refreshList();
+      try {
+        await dataService.archiveEmployee(id);
+        setSelectedEmployee(null);
+        await fetchEmployees();
+      } catch (e) {
+        alert("Error archiving: " + e.message);
+      }
     }
   };
 
-  const handleSaveCreds = (e) => {
+  const handleSaveCreds = async (e) => {
     e.preventDefault();
     if (tempCred.portal && tempCred.user) {
-      dataService.updateEmployeeCredentials(selectedEmployee.id, tempCred.portal, tempCred.user, tempCred.pass);
-      setIsEditingCreds(false);
-      setEditingPortalKey(null);
-      setTempCred({ portal: '', user: '', pass: '' });
-      refreshList();
+      try {
+        await dataService.updateEmployeeCredentials(selectedEmployee.id, tempCred.portal, tempCred.user, tempCred.pass);
+        setIsEditingCreds(false);
+        setEditingPortalKey(null);
+        setTempCred({ portal: '', user: '', pass: '' });
+        await fetchEmployees();
+      } catch (e) {
+        alert("Error saving credentials: " + e.message);
+      }
     }
   };
 
@@ -94,10 +130,14 @@ const EmployeeVault = () => {
     setIsEditingCreds(true);
   };
 
-  const handleDeleteCred = (portal) => {
+  const handleDeleteCred = async (portal) => {
     if (window.confirm(`Delete credentials for ${portal}?`)) {
-      dataService.deleteEmployeeCredential(selectedEmployee.id, portal);
-      refreshList();
+      try {
+        await dataService.deleteEmployeeCredential(selectedEmployee.id, portal);
+        await fetchEmployees();
+      } catch (e) {
+        alert("Error deleting credential: " + e.message);
+      }
     }
   };
 
@@ -105,6 +145,8 @@ const EmployeeVault = () => {
     if (!dateStr) return 'N/A';
     return new Date(dateStr).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
   };
+
+  if (loading && employees.length === 0) return <div className="view-container">Loading Employees...</div>;
 
   return (
     <div className="view-container">
@@ -150,26 +192,24 @@ const EmployeeVault = () => {
             </tr>
           </thead>
           <tbody>
-            {employees.map((emp) => {
-              const empHistory = dataService.getEmployeeHistory(emp.id);
-              const inProgressCount = empHistory.filter(l => l.status === 'Enrolled').length;
-              return (
-                <tr key={emp.id} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer' }} onClick={() => { setSelectedEmployee(emp); setIsEditingCreds(false); }} className="table-row-hover">
-                  <td style={{ padding: '1.2rem 1.5rem', fontWeight: '500' }}>{emp.name}</td>
-                  <td style={{ padding: '1.2rem 1.5rem', color: 'var(--text-muted)' }}>{emp.role || 'Staff Member'}</td>
-                  <td style={{ padding: '1.2rem 1.5rem' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <span title="Credentials Saved" style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>🔑 {Object.keys(emp.credentials || {}).length}</span>
-                      <span title="Completed Training" style={{ fontSize: '0.75rem', color: 'var(--primary)' }}>📜 {empHistory.filter(l => l.status === 'Completed').length}</span>
-                      {inProgressCount > 0 && <span title="Pending Training" style={{ fontSize: '0.75rem', color: 'var(--status-amber)' }}>⏳ {inProgressCount}</span>}
-                    </div>
-                  </td>
-                  <td style={{ padding: '1.2rem 1.5rem', textAlign: 'right' }}>
-                    <button onClick={(e) => { e.stopPropagation(); handleArchive(emp.id); }} style={{ background: 'none', border: '1px solid rgba(255,107,107,0.3)', color: '#ff6b6b', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer' }}>Archive</button>
-                  </td>
-                </tr>
-              );
-            })}
+            {employees.length === 0 ? <tr><td colSpan="4" style={{padding: '2rem', textAlign: 'center', color: 'var(--text-muted)'}}>No active employees found.</td></tr> :
+              employees.map((emp) => {
+                return (
+                  <tr key={emp.id} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer' }} onClick={() => { setSelectedEmployee(emp); setIsEditingCreds(false); }} className="table-row-hover">
+                    <td style={{ padding: '1.2rem 1.5rem', fontWeight: '500' }}>{emp.name}</td>
+                    <td style={{ padding: '1.2rem 1.5rem', color: 'var(--text-muted)' }}>{emp.role || 'Staff Member'}</td>
+                    <td style={{ padding: '1.2rem 1.5rem' }}>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <span title="Credentials Saved" style={{ fontSize: '0.75rem', color: 'var(--secondary)' }}>🔑 {Object.keys(emp.credentials || {}).length}</span>
+                      </div>
+                    </td>
+                    <td style={{ padding: '1.2rem 1.5rem', textAlign: 'right' }}>
+                      <button onClick={(e) => { e.stopPropagation(); handleArchive(emp.id); }} style={{ background: 'none', border: '1px solid rgba(255,107,107,0.3)', color: '#ff6b6b', padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer' }}>Archive</button>
+                    </td>
+                  </tr>
+                );
+              })
+            }
           </tbody>
         </table>
       </div>
@@ -297,7 +337,7 @@ const EmployeeVault = () => {
               )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                {Object.keys(selectedEmployee.credentials || {}).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No portal access stored.</p> : 
+                {Object.keys(selectedEmployee?.credentials || {}).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No portal access stored.</p> : 
                   Object.entries(selectedEmployee.credentials).map(([center, creds]) => (
                     <div key={center} className="card" style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>

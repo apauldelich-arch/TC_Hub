@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { dataService } from '../services/dataService';
 
 const TrainingLog = ({ goToDashboard }) => {
-  const [employees] = useState(dataService.getEmployees());
+  const [employees, setEmployees] = useState([]);
   const [selectedEmployees, setSelectedEmployees] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     courseName: '',
     provider: '',
@@ -14,6 +15,20 @@ const TrainingLog = ({ goToDashboard }) => {
     renewalType: '+ 730 Days (2 Years)',
     isBatch: false
   });
+
+  useEffect(() => {
+    const fetchEmployees = async () => {
+      try {
+        const emps = await dataService.getEmployees();
+        setEmployees(emps);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchEmployees();
+  }, []);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -28,7 +43,7 @@ const TrainingLog = ({ goToDashboard }) => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (selectedEmployees.length === 0) {
       alert("Please select at least one employee.");
@@ -36,14 +51,19 @@ const TrainingLog = ({ goToDashboard }) => {
     }
     setIsSubmitting(true);
     
-    setTimeout(() => {
-      dataService.createTrainingRecords(formData, selectedEmployees);
+    try {
+      await dataService.createTrainingRecords(formData, selectedEmployees);
       setIsSubmitting(false);
       goToDashboard();
-    }, 800);
+    } catch (e) {
+      alert("Error saving records: " + e.message);
+      setIsSubmitting(false);
+    }
   };
 
   const isEnrolledOnly = !formData.completionDate;
+
+  if (loading) return <div className="view-container">Loading Training Log...</div>;
 
   return (
     <div className="view-container">
@@ -117,7 +137,6 @@ const TrainingLog = ({ goToDashboard }) => {
                 <option value="+ 730 Days (2 Years)">+ 730 Days (2 Years)</option>
                 <option value="+ 365 Days (1 Year)">+ 365 Days (1 Year)</option>
                 <option value="+ 90 Days (Quarterly)">+ 90 Days (Quarterly)</option>
-                {/* NEW OPTION */}
                 <option value="No expiration (Lifetime)">No expiration (Lifetime)</option>
               </select>
             </div>
@@ -163,20 +182,22 @@ const TrainingLog = ({ goToDashboard }) => {
         <div className="card glass">
           <h3 style={{ fontSize: '1.1rem', marginBottom: '1.5rem' }}>Select Employees</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {employees.map(emp => (
-              <div 
-                key={emp.id}
-                className={`nav-link ${selectedEmployees.includes(emp.id) ? 'active' : ''}`}
-                style={{ border: '1px solid var(--glass-border)', padding: '0.8rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between' }}
-                onClick={() => toggleEmployee(emp.id)}
-              >
-                <div>
-                  <div style={{ fontWeight: '600' }}>{emp.name}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{emp.role}</div>
+            {employees.length === 0 ? <p style={{color: 'var(--text-muted)'}}>No active employees found.</p> :
+              employees.map(emp => (
+                <div 
+                  key={emp.id}
+                  className={`nav-link ${selectedEmployees.includes(emp.id) ? 'active' : ''}`}
+                  style={{ border: '1px solid var(--glass-border)', padding: '0.8rem', borderRadius: '10px', display: 'flex', justifyContent: 'space-between' }}
+                  onClick={() => toggleEmployee(emp.id)}
+                >
+                  <div>
+                    <div style={{ fontWeight: '600' }}>{emp.name}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{emp.role}</div>
+                  </div>
+                  {selectedEmployees.includes(emp.id) && <span style={{ color: 'var(--secondary)' }}>✓ Selected</span>}
                 </div>
-                {selectedEmployees.includes(emp.id) && <span style={{ color: 'var(--secondary)' }}>✓ Selected</span>}
-              </div>
-            ))}
+              ))
+            }
           </div>
         </div>
       </div>
