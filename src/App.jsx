@@ -158,7 +158,7 @@ const Dashboard = () => {
                   <tr><td colSpan="3" style={{ padding: '20px 0', textAlign: 'center', color: 'var(--text-muted)' }}>No spending recorded for this year.</td></tr>
                 ) : (
                   stats.spendBreakdown.map((item, idx) => {
-                    const isOverdue = item.status === 'Completed' && item.expiryDate && new Date(item.expiryDate) < new Date();
+                    const isInProgress = item.status === 'Enrolled';
                     return (
                       <tr key={idx} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                         <td style={{ padding: '12px 0', color: 'white' }}>{item.employeeName}</td>
@@ -169,12 +169,12 @@ const Dashboard = () => {
                             padding: '3px 8px', 
                             borderRadius: '4px', 
                             fontWeight: '700',
-                            background: isOverdue ? 'rgba(231, 76, 60, 0.1)' : (item.status === 'Completed' ? 'rgba(46, 204, 113, 0.1)' : 'rgba(52, 152, 219, 0.1)'),
-                            color: isOverdue ? 'var(--status-red)' : (item.status === 'Completed' ? 'var(--status-green)' : 'var(--primary)'),
-                            border: `1px solid ${isOverdue ? 'var(--status-red)' : (item.status === 'Completed' ? 'var(--status-green)' : 'var(--primary)')}`,
+                            background: isInProgress ? 'rgba(52, 152, 219, 0.1)' : 'rgba(46, 204, 113, 0.1)',
+                            color: isInProgress ? 'var(--primary)' : 'var(--status-green)',
+                            border: `1px solid ${isInProgress ? 'var(--primary)' : 'var(--status-green)'}`,
                             opacity: 0.8
                           }}>
-                            {isOverdue ? 'EXPIRED' : item.status.toUpperCase()}
+                            {isInProgress ? 'IN PROGRESS' : 'COMPLETED'}
                           </span>
                         </td>
                         <td style={{ padding: '12px 0', textAlign: 'right', color: 'var(--secondary)', fontWeight: '700' }}>£{item.cost.toLocaleString()}</td>
