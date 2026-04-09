@@ -160,5 +160,31 @@ export const dataService = {
         return { ...log, employeeName: employees.find(e => e.id === log.employeeId)?.name || 'Unknown', daysLeft: diffDays };
       })
       .sort((a, b) => a.daysLeft - b.daysLeft);
+  },
+
+  updateEmployeeCredentials: (employeeId, portalName, user, pass) => {
+    const emps = dataService.getEmployees(true);
+    const updated = emps.map(e => {
+      if (e.id === employeeId) {
+        const credentials = { ...(e.credentials || {}) };
+        credentials[portalName] = { user, pass };
+        return { ...e, credentials };
+      }
+      return e;
+    });
+    localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(updated));
+  },
+
+  deleteEmployeeCredential: (employeeId, portalName) => {
+    const emps = dataService.getEmployees(true);
+    const updated = emps.map(e => {
+      if (e.id === employeeId) {
+        const credentials = { ...(e.credentials || {}) };
+        delete credentials[portalName];
+        return { ...e, credentials };
+      }
+      return e;
+    });
+    localStorage.setItem(STORAGE_KEY_EMPLOYEES, JSON.stringify(updated));
   }
 };

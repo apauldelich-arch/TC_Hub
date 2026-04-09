@@ -10,6 +10,11 @@ const EmployeeVault = () => {
   
   const [employees, setEmployees] = useState(dataService.getEmployees());
 
+  // Credential Management State
+  const [isEditingCreds, setIsEditingCreds] = useState(false);
+  const [editingPortalKey, setEditingPortalKey] = useState(null);
+  const [tempCred, setTempCred] = useState({ portal: '', user: '', pass: '' });
+
   const refreshList = () => {
     setEmployees(dataService.getEmployees());
     if (selectedEmployee) {
@@ -45,6 +50,30 @@ const EmployeeVault = () => {
     if (window.confirm("Archive this employee? They will be hidden from all active views, but history is preserved for audit.")) {
       dataService.archiveEmployee(id);
       setSelectedEmployee(null);
+      refreshList();
+    }
+  };
+
+  const handleSaveCreds = (e) => {
+    e.preventDefault();
+    if (tempCred.portal && tempCred.user) {
+      dataService.updateEmployeeCredentials(selectedEmployee.id, tempCred.portal, tempCred.user, tempCred.pass);
+      setIsEditingCreds(false);
+      setEditingPortalKey(null);
+      setTempCred({ portal: '', user: '', pass: '' });
+      refreshList();
+    }
+  };
+
+  const startEditCred = (portal, creds) => {
+    setEditingPortalKey(portal);
+    setTempCred({ portal: portal, user: creds.user, pass: creds.pass });
+    setIsEditingCreds(true);
+  };
+
+  const handleDeleteCred = (portal) => {
+    if (window.confirm(`Delete credentials for ${portal}?`)) {
+      dataService.deleteEmployeeCredential(selectedEmployee.id, portal);
       refreshList();
     }
   };
@@ -102,7 +131,7 @@ const EmployeeVault = () => {
               const empHistory = dataService.getEmployeeHistory(emp.id);
               const inProgressCount = empHistory.filter(l => l.status === 'Enrolled').length;
               return (
-                <tr key={emp.id} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer' }} onClick={() => setSelectedEmployee(emp)} className="table-row-hover">
+                <tr key={emp.id} style={{ borderBottom: '1px solid var(--glass-border)', cursor: 'pointer' }} onClick={() => { setSelectedEmployee(emp); setIsEditingCreds(false); }} className="table-row-hover">
                   <td style={{ padding: '1.2rem 1.5rem', fontWeight: '500' }}>{emp.name}</td>
                   <td style={{ padding: '1.2rem 1.5rem', color: 'var(--text-muted)' }}>{emp.role || 'Staff Member'}</td>
                   <td style={{ padding: '1.2rem 1.5rem' }}>
@@ -126,7 +155,7 @@ const EmployeeVault = () => {
         <div style={{ position: 'fixed', top: 0, right: 0, width: '560px', height: '100%', zIndex: 100, boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }} className="glass">
           <div style={{ padding: '2.5rem', flex: 1, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
-              <h3 style={{ fontSize: '1.2rem' }}>Employee Profile</h3>
+              <h3 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '1px' }}>Employee Profile</h3>
               <button onClick={() => setSelectedEmployee(null)} style={{ background: 'none', border: 'none', color: 'white', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
             </div>
             <div style={{ marginBottom: '2.5rem' }}>
@@ -145,7 +174,6 @@ const EmployeeVault = () => {
                         <div style={{ fontSize: '0.65rem', padding: '4px 8px', borderRadius: '6px', background: log.status === 'Completed' ? 'rgba(0, 242, 254, 0.1)' : 'rgba(255, 179, 71, 0.1)', color: log.status === 'Completed' ? 'var(--secondary)' : 'var(--status-amber)', border: `1px solid ${log.status === 'Completed' ? 'var(--secondary)' : 'var(--status-amber)'}`, height: 'fit-content', textTransform: 'uppercase', fontWeight: '700' }}>{log.status === 'Enrolled' ? 'In Progress' : 'Completed'}</div>
                       </div>
                       
-                      {/* UPDATED: Triple-Column Audit View */}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', paddingTop: '10px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
                         <div>
                           <div style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Enrolled</div>
@@ -184,11 +212,63 @@ const EmployeeVault = () => {
             </div>
             
             <div style={{ marginTop: '3rem', marginBottom: '2.5rem' }}>
-              <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--secondary)', marginBottom: '1.2rem', letterSpacing: '1px' }}>Portal Credentials</h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.2rem' }}>
+                <h4 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--secondary)', letterSpacing: '1px' }}>Portal Credentials</h4>
+                <button 
+                  onClick={() => { setIsEditingCreds(true); setEditingPortalKey(null); setTempCred({ portal: '', user: '', pass: '' }); }}
+                  style={{ background: 'none', border: '1px solid var(--secondary)', color: 'var(--secondary)', padding: '4px 10px', borderRadius: '6px', fontSize: '0.7rem', fontWeight: '600', cursor: 'pointer' }}
+                >
+                  + Add Access
+                </button>
+              </div>
+
+              {isEditingCreds && (
+                <div className="card glass" style={{ marginBottom: '1.5rem', border: '1px solid var(--secondary)', padding: '1.2rem' }}>
+                  <form onSubmit={handleSaveCreds} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '5px' }}>Portal / System Name</label>
+                      <input type="text" value={tempCred.portal} onChange={e => setTempCred({...tempCred, portal: e.target.value})} placeholder="e.g. Itero Portal" className="glass" style={{ width: '100%', padding: '8px', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '4px' }} required disabled={!!editingPortalKey} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px' }}>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '5px' }}>Username</label>
+                        <input type="text" value={tempCred.user} onChange={e => setTempCred({...tempCred, user: e.target.value})} placeholder="User" className="glass" style={{ width: '100%', padding: '8px', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '4px' }} required />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '5px' }}>Password</label>
+                        <input type="text" value={tempCred.pass} onChange={e => setTempCred({...tempCred, pass: e.target.value})} placeholder="Pass" className="glass" style={{ width: '100%', padding: '8px', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '4px' }} />
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', marginTop: '5px' }}>
+                      <button type="submit" style={{ flex: 1, padding: '8px', borderRadius: '4px', background: 'var(--secondary)', color: 'black', fontWeight: '700', border: 'none', cursor: 'pointer' }}>{editingPortalKey ? 'Update' : 'Save Credentials'}</button>
+                      <button type="button" onClick={() => setIsEditingCreds(false)} style={{ padding: '8px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', color: 'white', border: 'none', cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {Object.keys(selectedEmployee.credentials || {}).length === 0 ? <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>No portal access stored.</p> : 
                   Object.entries(selectedEmployee.credentials).map(([center, creds]) => (
-                    <div key={center} className="card" style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem' }}><div style={{ fontSize: '0.85rem', fontWeight: '600', marginBottom: '0.8rem' }}>{center}</div><div style={{ display: 'grid', gridTemplateColumns: '1fr 1.5fr', gap: '10px' }}><div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>User</label><code style={{ fontSize: '0.85rem', color: 'var(--secondary)' }}>{creds.user}</code></div><div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Pass</label><code style={{ fontSize: '0.85rem' }}>{creds.pass}</code></div></div></div>
+                    <div key={center} className="card" style={{ background: 'rgba(255,255,255,0.03)', padding: '1rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.8rem' }}>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '600' }}>{center}</div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button onClick={() => startEditCred(center, creds)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.7rem' }}>Edit</button>
+                          <button onClick={() => handleDeleteCred(center)} style={{ background: 'none', border: 'none', color: '#ff6666', cursor: 'pointer', fontSize: '0.7rem' }}>Delete</button>
+                        </div>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: '15px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>User</label>
+                          <code style={{ fontSize: '0.8rem', color: 'var(--secondary)', wordBreak: 'break-all', display: 'block' }}>{creds.user}</code>
+                        </div>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.6rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '2px' }}>Pass</label>
+                          <code style={{ fontSize: '0.8rem', color: 'white', wordBreak: 'break-all', display: 'block' }}>{creds.pass}</code>
+                        </div>
+                      </div>
+                    </div>
                   ))
                 }
               </div>
