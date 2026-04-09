@@ -130,8 +130,9 @@ export const dataService = {
     thirtyDaysOut.setDate(now.getDate() + 30);
 
     const yearlySpend = filteredLogs.reduce((acc, log) => {
-      if (log.completionDate && new Date(log.completionDate).getFullYear() === parseInt(targetYear)) {
-        return acc + log.cost;
+      // Logic Update: Track spend by Enrolment Date since payments are usually up-front (advance pay)
+      if (log.enrolmentDate && new Date(log.enrolmentDate).getFullYear() === parseInt(targetYear)) {
+        return acc + (parseFloat(log.cost) || 0);
       }
       return acc;
     }, 0);
