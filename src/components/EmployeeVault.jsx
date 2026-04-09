@@ -5,6 +5,7 @@ const EmployeeVault = () => {
   const [selectedEmployee, setSelectedEmployee] = useState(null);
   const [showCompleteModal, setShowCompleteModal] = useState(null);
   const [completionDateInput, setCompletionDateInput] = useState(new Date().toISOString().split('T')[0]);
+  const [expiryDateInput, setExpiryDateInput] = useState('');
   const [isAddingEmployee, setIsAddingEmployee] = useState(false);
   const [newEmpData, setNewEmpData] = useState({ name: '', role: '' });
   
@@ -30,8 +31,9 @@ const EmployeeVault = () => {
   const handleComplete = (e) => {
     e.preventDefault();
     if (showCompleteModal && completionDateInput) {
-      dataService.completeRecord(showCompleteModal, completionDateInput);
+      dataService.completeRecord(showCompleteModal, completionDateInput, expiryDateInput);
       setShowCompleteModal(null);
+      setExpiryDateInput('');
       refreshList();
     }
   };
@@ -200,9 +202,21 @@ const EmployeeVault = () => {
                       </div>
 
                       {showCompleteModal === log.id && (
-                        <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', border: '1px solid var(--primary)' }}>
-                          <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '8px' }}>Completion Date:</label>
-                          <div style={{ display: 'flex', gap: '10px' }}><input type="date" value={completionDateInput} onChange={(e) => setCompletionDateInput(e.target.value)} style={{ flex: 1, padding: '6px', background: 'rgba(255,255,255,0.1)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '4px' }} /><button onClick={handleComplete} style={{ background: 'var(--secondary)', color: 'black', border: 'none', padding: '0 10px', borderRadius: '4px', fontWeight: '600', cursor: 'pointer' }}>Save</button><button onClick={() => setShowCompleteModal(null)} style={{ background: 'none', color: 'white', border: 'none', cursor: 'pointer' }}>Cancel</button></div>
+                        <div style={{ marginTop: '15px', padding: '15px', background: 'rgba(0,0,0,0.3)', borderRadius: '12px', border: '1px solid var(--primary)', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>Completion Date:</label>
+                              <input type="date" value={completionDateInput} onChange={(e) => setCompletionDateInput(e.target.value)} style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '6px' }} />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginBottom: '5px', textTransform: 'uppercase' }}>Renewal Override:</label>
+                              <input type="date" value={expiryDateInput} onChange={(e) => setExpiryDateInput(e.target.value)} placeholder="Auto-calculate..." style={{ width: '100%', padding: '8px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--glass-border)', color: 'white', borderRadius: '6px' }} />
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: '10px' }}>
+                            <button onClick={handleComplete} style={{ flex: 1, background: 'var(--secondary)', color: 'black', border: 'none', padding: '10px', borderRadius: '6px', fontWeight: '700', cursor: 'pointer' }}>Save and Finalize</button>
+                            <button onClick={() => setShowCompleteModal(null)} style={{ background: 'none', color: 'white', border: '1px solid var(--glass-border)', padding: '10px 15px', borderRadius: '6px', cursor: 'pointer' }}>Cancel</button>
+                          </div>
                         </div>
                       )}
                     </div>

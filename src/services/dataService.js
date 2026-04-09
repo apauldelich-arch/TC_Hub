@@ -84,14 +84,14 @@ export const dataService = {
     return newRecords;
   },
 
-  completeRecord: (recordId, completionDate) => {
+  completeRecord: (recordId, completionDate, manualExpiryDate) => {
     const logs = dataService.getLogs();
     const updatedLogs = logs.map(log => {
       if (log.id === recordId) {
         return {
           ...log,
           completionDate: completionDate,
-          expiryDate: dataService.calculateExpiry(completionDate, log.renewalType || '+ 730 Days (2 Years)'),
+          expiryDate: manualExpiryDate || dataService.calculateExpiry(completionDate, log.renewalType || '+ 730 Days (2 Years)'),
           status: 'Completed'
         };
       }
