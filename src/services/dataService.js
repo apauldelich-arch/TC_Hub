@@ -104,7 +104,16 @@ export const dataService = {
     const logs = dataService.getLogs();
     const updatedLogs = logs.map(log => {
       if (log.id === recordId) {
-        return { ...log, ...updates };
+        const newRecord = { ...log, ...updates };
+        // If completion date is removed, revert to 'Enrolled'
+        if (!newRecord.completionDate || newRecord.completionDate === '') {
+          newRecord.status = 'Enrolled';
+          newRecord.completionDate = null;
+          newRecord.expiryDate = null;
+        } else {
+          newRecord.status = 'Completed';
+        }
+        return newRecord;
       }
       return log;
     });

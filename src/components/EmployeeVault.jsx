@@ -30,16 +30,23 @@ const EmployeeVault = () => {
 
   const handleComplete = (e) => {
     e.preventDefault();
-    if (showCompleteModal && completionDateInput) {
+    if (showCompleteModal) {
       const log = history.find(l => l.id === showCompleteModal);
+      
       if (log && log.status === 'Completed') {
+        // When editing a completed record, allow clearing the date to revert status
         dataService.updateTrainingRecord(showCompleteModal, { 
           completionDate: completionDateInput, 
           expiryDate: expiryDateInput 
         });
-      } else {
+      } else if (completionDateInput) {
+        // When finalizing for the first time, require a date
         dataService.completeRecord(showCompleteModal, completionDateInput, expiryDateInput);
+      } else {
+        // If trying to finalize without a date, do nothing or show alert
+        return;
       }
+
       setShowCompleteModal(null);
       setExpiryDateInput('');
       refreshList();
