@@ -152,7 +152,7 @@ const EmployeeVault = () => {
       </div>
 
       {selectedEmployee && (
-        <div style={{ position: 'fixed', top: 0, right: 0, width: '560px', height: '100%', zIndex: 100, boxShadow: '-10px 0 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column' }} className="glass">
+        <div style={{ position: 'fixed', top: 0, right: 0, width: '560px', height: '100%', zIndex: 1000, boxShadow: '-15px 0 45px rgba(0,0,0,0.7)', display: 'flex', flexDirection: 'column', background: 'rgba(15, 15, 18, 0.98)', borderLeft: '1px solid var(--glass-border)' }}>
           <div style={{ padding: '2.5rem', flex: 1, overflowY: 'auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '2rem' }}>
               <h3 style={{ fontSize: '0.8rem', textTransform: 'uppercase', color: 'var(--text-muted)', letterSpacing: '1px' }}>Employee Profile</h3>
