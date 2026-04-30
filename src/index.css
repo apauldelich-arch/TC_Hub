@@ -1,21 +1,21 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
 
 :root {
-  --bg-deep: #0a0a0c;
-  --bg-card: #141416;
-  --bg-sidebar: rgba(20, 20, 22, 0.8);
+  --bg-deep: #1A2E35;
+  --bg-card: #223C45;
+  --bg-sidebar: rgba(26, 46, 53, 0.85);
   
-  --primary: #9d50bb;
-  --primary-glow: rgba(157, 80, 187, 0.4);
-  --secondary: #00f2fe;
-  --secondary-glow: rgba(0, 242, 254, 0.4);
+  --primary: #EE5D39;
+  --primary-glow: rgba(238, 93, 57, 0.4);
+  --secondary: #ffffff;
+  --secondary-glow: rgba(255, 255, 255, 0.2);
   
   --text-main: #ffffff;
-  --text-muted: #8a8a8e;
+  --text-muted: rgba(255, 255, 255, 0.6);
   
-  --status-red: #ff4b2b;
+  --status-red: #EE5D39;
   --status-amber: #ffb347;
-  --status-green: #00f2fe;
+  --status-green: #2ecc71;
   
   --glass-border: rgba(255, 255, 255, 0.08);
   --glass-bg: rgba(255, 255, 255, 0.03);
@@ -28,7 +28,7 @@
 }
 
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Poppins', sans-serif;
   background-color: var(--bg-deep);
   color: var(--text-main);
   overflow: hidden; 
@@ -131,8 +131,8 @@ body {
   position: relative;
   overflow-y: auto;
   padding: 3rem;
-  background: radial-gradient(circle at top right, rgba(157, 80, 187, 0.05), transparent 40%),
-              radial-gradient(circle at bottom left, rgba(0, 242, 254, 0.05), transparent 40%);
+  background: radial-gradient(circle at top right, rgba(238, 93, 57, 0.08), transparent 40%),
+              radial-gradient(circle at bottom left, rgba(255, 255, 255, 0.03), transparent 40%);
 }
 
 .nav-link {
