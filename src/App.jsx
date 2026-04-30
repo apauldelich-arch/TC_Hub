@@ -3,7 +3,7 @@ import EmployeeVault from './components/EmployeeVault';
 import TrainingLog from './components/TrainingLog';
 import { dataService } from './services/dataService';
 
-const Sidebar = ({ activeTab, setActiveTab }) => {
+const Sidebar = ({ activeTab, setActiveTab, setShowManifesto }) => {
   const links = [
     { id: 'dashboard', label: 'Dashboard', icon: '📊' },
     { id: 'vault', label: 'Employee Vault', icon: '👥' },
@@ -48,7 +48,7 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         >
           <span>📥</span> Export Data (CSV)
         </div>
-        <div className="nav-link" style={{ fontSize: '0.85rem' }}>
+        <div className="nav-link" style={{ fontSize: '0.85rem', cursor: 'pointer' }} onClick={() => setShowManifesto(true)}>
           <span>ℹ️</span> Project Manifesto
         </div>
       </div>
@@ -403,9 +403,11 @@ const HorizonCalendar = () => {
 
 function App() {
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showManifesto, setShowManifesto] = useState(false);
+
   return (
     <div style={{ display: 'flex', width: '100%', height: '100%' }}>
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} setShowManifesto={setShowManifesto} />
       <main className="main-content">
         {activeTab === 'dashboard' && <Dashboard />}
         {activeTab === 'vault' && <EmployeeVault />}
@@ -413,6 +415,27 @@ function App() {
         {activeTab === 'centers' && <CentersView />}
         {activeTab === 'calendar' && <HorizonCalendar />}
       </main>
+
+      {showManifesto && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(10px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.2s ease-out' }}>
+          <div className="card glass" style={{ maxWidth: '600px', width: '90%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h2 style={{ color: 'var(--primary)', fontSize: '1.5rem', margin: 0 }}>Project Manifesto</h2>
+              <button onClick={() => setShowManifesto(false)} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '1.5rem' }}>&times;</button>
+            </div>
+            <div style={{ lineHeight: '1.6', color: 'var(--text-main)' }}>
+              <p style={{ marginBottom: '1rem' }}>The <strong>Itero-TC-Tracker</strong> is a high-precision compliance dashboard designed to eliminate the manual labor of Health & Safety training management.</p>
+              <p style={{ marginBottom: '1rem' }}>It transforms static logs into a proactive, visual strategic tool, ensuring that the team is always ready and compliant, without the administrative burden.</p>
+              <p><strong>Core Principles:</strong></p>
+              <ul style={{ paddingLeft: '1.5rem', marginTop: '0.5rem', marginBottom: '1rem', color: 'var(--text-muted)' }}>
+                <li style={{ marginBottom: '0.5rem' }}>Total visibility into compliance and renewal horizons.</li>
+                <li style={{ marginBottom: '0.5rem' }}>Eliminate manual tracking via static spreadsheets.</li>
+                <li style={{ marginBottom: '0.5rem' }}>Empower the team with actionable analytics and transparent records.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
