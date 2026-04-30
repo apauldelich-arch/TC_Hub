@@ -278,5 +278,49 @@ export const dataService = {
 
     const { error } = await supabase.from('training_logs').insert(records);
     if (error) throw error;
+  },
+
+  exportAllDataCSV: async () => {
+    const { data: employees, error: eError } = await supabase.from('employees').select('id, name, role, is_archived');
+    const { data: logs, error: lError } = await supabase.from('training_logs').select('*');
+    
+    if (eError || lError) throw (eError || lError);
+    
+    const csvRows = [];
+    csvRows.push(['Employee Name', 'Role', 'Account Status', 'Course Name', 'Provider', 'Cost', 'Enrolment Date', 'Completion Date', 'Expiry Date', 'Training Status', 'Renewal Type']);
+    
+    employees.forEach(emp => {
+      const empLogs = logs.filter(l => l.employee_id === emp.id);
+      if (empLogs.length === 0) {
+        csvRows.push([`"${emp.name}"`, `"${emp.role}"`, emp.is_archived ? 'Archived' : 'Active', '', '', '', '', '', '', '', '']);
+      } else {
+        empLogs.forEach(log => {
+          csvRows.push([
+            `"${emp.name}"`, 
+            `"${emp.role}"`, 
+            emp.is_archived ? 'Archived' : 'Active',
+            `"${log.course_name || ''}"`,
+            `"${log.provider || ''}"`,
+            log.cost || 0,
+            log.enrolment_date || '',
+            log.completion_date || '',
+            log.expiry_date || '',
+            log.status || '',
+            `"${log.renewal_type || ''}"`
+          ]);
+        });
+      }
+    });
+
+    const csvContent = csvRows.map(e => e.join(',')).join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `Itero_TC_Export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   }
 };

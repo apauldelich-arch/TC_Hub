@@ -34,7 +34,20 @@ const Sidebar = ({ activeTab, setActiveTab }) => {
         ))}
       </nav>
 
-      <div className="footer-section" style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem' }}>
+      <div className="footer-section" style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.5rem', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div 
+          className="nav-link" 
+          style={{ fontSize: '0.85rem', color: 'var(--text-main)', background: 'var(--primary)', justifyContent: 'center', fontWeight: 'bold' }}
+          onClick={async () => {
+            try {
+              await dataService.exportAllDataCSV();
+            } catch (err) {
+              alert('Export failed: ' + err.message);
+            }
+          }}
+        >
+          <span>📥</span> Export Data (CSV)
+        </div>
         <div className="nav-link" style={{ fontSize: '0.85rem' }}>
           <span>ℹ️</span> Project Manifesto
         </div>
